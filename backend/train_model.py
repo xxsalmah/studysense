@@ -5,13 +5,17 @@ print("========================================")
 import pandas as pd
 import joblib
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold, cross_val_score
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error, r2_score
+from sklearn.metrics import mean_absolute_error
 
 from app import app
 from models import Subject, StudySession, Score
 
+
+# ========================================
+# CREATE DATASET
+# ========================================
 
 def create_dataset():
 
@@ -43,6 +47,10 @@ def create_dataset():
             if score.subject_id == subject.id
         ]
 
+        # --------------------------------
+        # Study statistics
+        # --------------------------------
+
         total_minutes = sum(
             session.duration
             for session in subject_sessions
@@ -50,22 +58,23 @@ def create_dataset():
 
         session_count = len(subject_sessions)
 
-        if session_count > 0:
-            average_session_minutes = (
-                total_minutes / session_count
-            )
-        else:
-            average_session_minutes = 0
+        average_session_minutes = (
+            total_minutes / session_count
+            if session_count > 0
+            else 0
+        )
 
         study_hours = total_minutes / 60
 
-        score_count = len(subject_scores)
+        # --------------------------------
+        # Score statistics
+        # --------------------------------
 
-        if score_count > 0:
+        percentages = []
 
-            percentages = []
+        for score in subject_scores:
 
-            for score in subject_scores:
+            if score.max_score > 0:
 
                 percentage = (
                     score.score / score.max_score
@@ -73,35 +82,61 @@ def create_dataset():
 
                 percentages.append(percentage)
 
+        if percentages:
+
             average_score = (
-                sum(percentages) / len(percentages)
+                sum(percentages)
+                / len(percentages)
             )
 
         else:
+
             average_score = None
 
-        if subject.target_score is not None:
-            target_score = subject.target_score
-        else:
-            target_score = 0
+        # --------------------------------
+        # Target
+        # --------------------------------
 
-        # Only subjects with scores
-        # can be used to train the model.
+        target_score = (
+            float(subject.target_score)
+            if subject.target_score is not None
+            else 0
+        )
+
+        # --------------------------------
+        # Add training row
+        # --------------------------------
+
         if average_score is not None:
 
             rows.append({
+
                 "subject": subject.name,
+
                 "study_hours": study_hours,
+
                 "session_count": session_count,
+
                 "average_session_minutes":
                     average_session_minutes,
-                "score_count": score_count,
-                "target_score": target_score,
-                "average_score": average_score
+
+                "score_count":
+                    len(subject_scores),
+
+                "target_score":
+                    target_score,
+
+                "average_score":
+                    average_score
+
             })
 
     return pd.DataFrame(rows)
 
+
+# ========================================
+# TRAIN MODEL
+# ========================================
 
 def train_model():
 
@@ -127,178 +162,182 @@ def train_model():
 
         return
 
-    print(df.to_string(index=False))
+    print(
+        df.to_string(index=False)
+    )
 
     print()
     print(
         f"Training examples: {len(df)}"
     )
 
-    # We need enough rows to create
-    # a useful train/test split.
-    if len(df) < 5:
+    # ====================================
+    # FEATURES
+    # ====================================
 
-        print()
-        print("========================================")
-        print("NOT ENOUGH DATA")
-        print("========================================")
-        print()
-        print(
-            "You currently have fewer than 5 "
-            "subjects with scores."
-        )
-        print()
-        print(
-            "The ML pipeline is working, but "
-            "there isn't enough data yet for "
-            "a meaningful model evaluation."
-        )
-        print()
-        print(
-            "Add more subjects and assessment "
-            "scores, then run this script again."
-        )
-
-        return
-
-    # --------------------------------
-    # Features
-    # --------------------------------
-
-    X = df[
-        [
-            "study_hours",
-            "session_count",
-            "average_session_minutes",
-            "score_count",
-            "target_score"
-        ]
+    features = [
+        "study_hours",
+        "session_count",
+        "average_session_minutes",
+        "score_count",
+        "target_score"
     ]
 
-    # --------------------------------
-    # Target
-    # --------------------------------
+    X = df[features]
+
+    # ====================================
+    # TARGET
+    # ====================================
 
     y = df["average_score"]
 
     print()
-    print("Splitting dataset...")
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=0.2,
-        random_state=42
-    )
+    print("========================================")
+    print("FEATURES")
+    print("========================================")
 
     print(
-        f"Training rows: {len(X_train)}"
+        X.to_string(index=False)
     )
-
-    print(
-        f"Testing rows: {len(X_test)}"
-    )
-
-    # --------------------------------
-    # Create model
-    # --------------------------------
 
     print()
-    print("Creating Linear Regression model...")
+    print("TARGET")
+
+    print(
+        y.to_string(index=False)
+    )
+
+    # ====================================
+    # CROSS VALIDATION
+    # ====================================
+
+    print()
+    print("========================================")
+    print("CROSS-VALIDATION")
+    print("========================================")
+
+    # Use 5 folds when we have 5+ examples.
+    # This means every example gets used for
+    # validation once.
+
+    number_of_folds = min(
+        5,
+        len(df)
+    )
+
+    kfold = KFold(
+        n_splits=number_of_folds,
+        shuffle=True,
+        random_state=42
+    )
 
     model = LinearRegression()
 
     # --------------------------------
-    # Train
+    # MAE
     # --------------------------------
 
-    print("Training model...")
-
-    model.fit(
-        X_train,
-        y_train
+    mae_scores = cross_val_score(
+        model,
+        X,
+        y,
+        cv=kfold,
+        scoring="neg_mean_absolute_error"
     )
 
-    print("Model trained successfully!")
-
-    # --------------------------------
-    # Predict
-    # --------------------------------
-
-    print()
-    print("Making predictions...")
-
-    predictions = model.predict(X_test)
-
-    # --------------------------------
-    # Evaluate
-    # --------------------------------
-
-    mae = mean_absolute_error(
-        y_test,
-        predictions
-    )
-
-    r2 = r2_score(
-        y_test,
-        predictions
-    )
-
-    print()
-    print("========================================")
-    print("MODEL RESULTS")
-    print("========================================")
-
-    print(
-        f"Mean Absolute Error: {mae:.2f}"
-    )
-
-    print(
-        f"R² Score: {r2:.2f}"
-    )
+    mae_scores = -mae_scores
 
     print()
 
-    # --------------------------------
-    # Show predictions
-    # --------------------------------
-
-    print("Actual vs Predicted:")
-
-    for actual, predicted in zip(
-        y_test,
-        predictions
+    for index, score in enumerate(
+        mae_scores,
+        start=1
     ):
 
         print(
-            f"Actual: {actual:.2f}%  |  "
-            f"Predicted: {predicted:.2f}%"
+            f"Fold {index} MAE: {score:.2f}"
         )
 
-    # --------------------------------
-    # Save model
-    # --------------------------------
+    average_mae = mae_scores.mean()
+
+    print()
+    print(
+        f"Average Cross-Validation MAE: "
+        f"{average_mae:.2f}"
+    )
+
+    # ====================================
+    # TRAIN FINAL MODEL
+    # ====================================
+
+    print()
+    print("========================================")
+    print("FINAL MODEL")
+    print("========================================")
+
+    print(
+        "Training final Linear Regression "
+        "model using all available data..."
+    )
+
+    model.fit(
+        X,
+        y
+    )
+
+    print(
+        "Final model trained successfully!"
+    )
+
+    # ====================================
+    # MODEL COEFFICIENTS
+    # ====================================
+
+    print()
+    print("========================================")
+    print("MODEL COEFFICIENTS")
+    print("========================================")
+
+    for feature, coefficient in zip(
+        features,
+        model.coef_
+    ):
+
+        print(
+            f"{feature}: {coefficient:.4f}"
+        )
+
+    print()
+    print(
+        f"Intercept: {model.intercept_:.4f}"
+    )
+
+    # ====================================
+    # SAVE MODEL
+    # ====================================
 
     model_data = {
+
         "model": model,
-        "features": [
-            "study_hours",
-            "session_count",
-            "average_session_minutes",
-            "score_count",
-            "target_score"
-        ],
-        "mae": float(mae),
-        "r2": float(r2) if len(y_test) >= 2 else None,
-        "training_examples": len(df),
-        "training_rows": len(X_train),
-        "testing_rows": len(X_test)
+
+        "features": features,
+
+        "mae": float(average_mae),
+
+        "cv_folds": number_of_folds,
+
+        "training_examples": len(df)
+
     }
 
     joblib.dump(
         model_data,
         "studysense_model.pkl"
     )
+
+    # ====================================
+    # RESULT
+    # ====================================
 
     print()
     print("========================================")
@@ -310,8 +349,26 @@ def train_model():
     )
 
     print()
-    print("Training complete!")
+    print(
+        "Cross-validation complete."
+    )
 
+    print(
+        "Final model trained on all data."
+    )
+
+    print()
+    print(
+        "StudySense ML pipeline is ready."
+    )
+
+    print("========================================")
+
+
+# ========================================
+# RUN
+# ========================================
 
 if __name__ == "__main__":
+
     train_model()
