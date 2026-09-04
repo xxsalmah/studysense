@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -51,30 +50,16 @@ function AIPrediction({ subjectAnalytics }) {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:5000/api/predict",
+        `${API_URL}/api/predict`,
         {
           method: "POST",
+
           headers: {
             "Content-Type": "application/json",
           },
+
           body: JSON.stringify({
-            study_hours:
-              selectedData.studyMinutes / 60,
-
-            session_count:
-              selectedData.sessionCount,
-
-            average_session_minutes:
-              selectedData.sessionCount > 0
-                ? selectedData.studyMinutes /
-                  selectedData.sessionCount
-                : 0,
-
-            score_count:
-              selectedData.scoreCount,
-
-            target_score:
-              selectedData.targetScore,
+            subject_id: selectedData.id,
           }),
         }
       );
@@ -87,7 +72,9 @@ function AIPrediction({ subjectAnalytics }) {
         );
       }
 
-      setPrediction(data.predicted_score);
+      setPrediction(
+        data.predicted_score
+      );
 
     } catch (err) {
 
@@ -131,12 +118,14 @@ function AIPrediction({ subjectAnalytics }) {
           <select
             value={selectedSubjectId}
             onChange={(e) => {
+
               setSelectedSubjectId(
                 e.target.value
               );
 
               setPrediction(null);
               setError("");
+
             }}
           >
 
@@ -166,6 +155,7 @@ function AIPrediction({ subjectAnalytics }) {
           <div className="ai-data-preview">
 
             <div>
+
               <span>
                 Study Hours
               </span>
@@ -176,9 +166,11 @@ function AIPrediction({ subjectAnalytics }) {
                   60
                 ).toFixed(1)}
               </strong>
+
             </div>
 
             <div>
+
               <span>
                 Study Sessions
               </span>
@@ -186,14 +178,17 @@ function AIPrediction({ subjectAnalytics }) {
               <strong>
                 {selectedData.sessionCount}
               </strong>
+
             </div>
 
             <div>
+
               <span>
                 Average Session
               </span>
 
               <strong>
+
                 {selectedData.sessionCount > 0
                   ? (
                       selectedData.studyMinutes /
@@ -201,10 +196,13 @@ function AIPrediction({ subjectAnalytics }) {
                     ).toFixed(0)
                   : 0}{" "}
                 min
+
               </strong>
+
             </div>
 
             <div>
+
               <span>
                 Assessments
               </span>
@@ -212,18 +210,23 @@ function AIPrediction({ subjectAnalytics }) {
               <strong>
                 {selectedData.scoreCount}
               </strong>
+
             </div>
 
             <div>
+
               <span>
                 Target Score
               </span>
 
               <strong>
+
                 {selectedData.targetScore
                   ? `${selectedData.targetScore}%`
                   : "—"}
+
               </strong>
+
             </div>
 
           </div>
@@ -240,15 +243,19 @@ function AIPrediction({ subjectAnalytics }) {
           !selectedData
         }
       >
+
         {loading
           ? "Analyzing..."
           : "Predict My Performance"}
+
       </button>
 
       {error && (
+
         <div className="ai-error">
           {error}
         </div>
+
       )}
 
       {prediction !== null && (
@@ -351,9 +358,13 @@ function App() {
 
         fetch(`${API_URL}/api/scores`),
 
-        fetch(`${API_URL}/api/analytics/features`),
+        fetch(
+          `${API_URL}/api/analytics/features`
+        ),
 
-        fetch(`${API_URL}/api/model-performance`),
+        fetch(
+          `${API_URL}/api/model-performance`
+        ),
 
       ]);
 
@@ -429,18 +440,23 @@ function App() {
 
           body: JSON.stringify({
             name: subjectForm.name,
+
             target_score:
               subjectForm.target_score
-                ? Number(subjectForm.target_score)
+                ? Number(
+                    subjectForm.target_score
+                  )
                 : null,
           }),
         }
       );
 
       if (!response.ok) {
+
         throw new Error(
           "Failed to add subject"
         );
+
       }
 
       setSubjectForm({
@@ -477,17 +493,23 @@ function App() {
           },
 
           body: JSON.stringify({
+
             subject_id:
-              Number(sessionForm.subject_id),
+              Number(
+                sessionForm.subject_id
+              ),
 
             topic:
               sessionForm.topic,
 
             duration:
-              Number(sessionForm.duration),
+              Number(
+                sessionForm.duration
+              ),
 
             date:
               sessionForm.date,
+
           }),
         }
       );
@@ -501,6 +523,7 @@ function App() {
           errorData.error ||
           "Failed to add session"
         );
+
       }
 
       setSessionForm({
@@ -539,20 +562,28 @@ function App() {
           },
 
           body: JSON.stringify({
+
             subject_id:
-              Number(scoreForm.subject_id),
+              Number(
+                scoreForm.subject_id
+              ),
 
             assessment:
               scoreForm.assessment,
 
             score:
-              Number(scoreForm.score),
+              Number(
+                scoreForm.score
+              ),
 
             max_score:
-              Number(scoreForm.max_score),
+              Number(
+                scoreForm.max_score
+              ),
 
             date:
               scoreForm.date,
+
           }),
         }
       );
@@ -566,6 +597,7 @@ function App() {
           errorData.error ||
           "Failed to add score"
         );
+
       }
 
       setScoreForm({
@@ -593,7 +625,8 @@ function App() {
 
     const subject =
       subjects.find(
-        (item) => item.id === subjectId
+        (item) =>
+          item.id === subjectId
       );
 
     return subject
@@ -607,7 +640,8 @@ function App() {
 
   const totalMinutes = sessions.reduce(
     (total, session) =>
-      total + Number(session.duration),
+      total +
+      Number(session.duration),
     0
   );
 
@@ -616,7 +650,8 @@ function App() {
 
   const averageSession =
     sessions.length > 0
-      ? totalMinutes / sessions.length
+      ? totalMinutes /
+        sessions.length
       : 0;
 
   const averageScore =
@@ -624,7 +659,9 @@ function App() {
       ? scores.reduce(
           (total, score) =>
             total +
-            Number(score.percentage),
+            Number(
+              score.percentage
+            ),
           0
         ) / scores.length
       : 0;
@@ -633,68 +670,83 @@ function App() {
   // SUBJECT ANALYTICS
   // =========================
 
-  const subjectAnalytics = useMemo(() => {
+  const subjectAnalytics =
+    useMemo(() => {
 
-    return subjects.map((subject) => {
+      return subjects.map(
+        (subject) => {
 
-      const subjectSessions =
-        sessions.filter(
-          (session) =>
-            session.subject_id === subject.id
-        );
+          const subjectSessions =
+            sessions.filter(
+              (session) =>
+                session.subject_id ===
+                subject.id
+            );
 
-      const subjectScores =
-        scores.filter(
-          (score) =>
-            score.subject_id === subject.id
-        );
+          const subjectScores =
+            scores.filter(
+              (score) =>
+                score.subject_id ===
+                subject.id
+            );
 
-      const studyMinutes =
-        subjectSessions.reduce(
-          (total, session) =>
-            total + Number(session.duration),
-          0
-        );
-
-      const subjectAverageScore =
-        subjectScores.length > 0
-          ? subjectScores.reduce(
-              (total, score) =>
+          const studyMinutes =
+            subjectSessions.reduce(
+              (total, session) =>
                 total +
-                Number(score.percentage),
+                Number(
+                  session.duration
+                ),
               0
-            ) / subjectScores.length
-          : 0;
+            );
 
-      return {
+          const subjectAverageScore =
+            subjectScores.length > 0
+              ? subjectScores.reduce(
+                  (total, score) =>
+                    total +
+                    Number(
+                      score.percentage
+                    ),
+                  0
+                ) /
+                subjectScores.length
+              : 0;
 
-        id: subject.id,
+          return {
 
-        name: subject.name,
+            id:
+              subject.id,
 
-        studyMinutes,
+            name:
+              subject.name,
 
-        sessionCount:
-          subjectSessions.length,
+            studyMinutes,
 
-        scoreCount:
-          subjectScores.length,
+            sessionCount:
+              subjectSessions.length,
 
-        averageScore:
-          subjectAverageScore,
+            scoreCount:
+              subjectScores.length,
 
-        targetScore:
-          Number(subject.target_score) || 0,
+            averageScore:
+              subjectAverageScore,
 
-      };
+            targetScore:
+              Number(
+                subject.target_score
+              ) || 0,
 
-    });
+          };
 
-  }, [
-    subjects,
-    sessions,
-    scores,
-  ]);
+        }
+      );
+
+    }, [
+      subjects,
+      sessions,
+      scores,
+    ]);
 
   // =========================
   // CHART DATA
@@ -703,10 +755,18 @@ function App() {
   const studyTimeChartData =
     subjectAnalytics.map(
       (subject) => ({
-        subject: subject.name,
-        hours: Number(
-          (subject.studyMinutes / 60).toFixed(2)
-        ),
+
+        subject:
+          subject.name,
+
+        hours:
+          Number(
+            (
+              subject.studyMinutes /
+              60
+            ).toFixed(2)
+          ),
+
       })
     );
 
@@ -718,46 +778,76 @@ function App() {
       )
       .map(
         (subject) => ({
-          subject: subject.name,
-          score: Number(
-            subject.averageScore.toFixed(2)
-          ),
+
+          subject:
+            subject.name,
+
+          score:
+            Number(
+              subject.averageScore.toFixed(
+                2
+              )
+            ),
+
         })
       );
 
-  const sessionTrendData = useMemo(() => {
+  const sessionTrendData =
+    useMemo(() => {
 
-    const grouped = {};
+      const grouped = {};
 
-    sessions.forEach((session) => {
+      sessions.forEach(
+        (session) => {
 
-      if (!grouped[session.date]) {
-        grouped[session.date] = 0;
-      }
+          if (
+            !grouped[
+              session.date
+            ]
+          ) {
 
-      grouped[session.date] +=
-        Number(session.duration);
+            grouped[
+              session.date
+            ] = 0;
 
-    });
+          }
 
-    return Object.entries(grouped)
+          grouped[
+            session.date
+          ] += Number(
+            session.duration
+          );
 
-      .sort(
-        ([dateA], [dateB]) =>
-          new Date(dateA) -
-          new Date(dateB)
+        }
+      );
+
+      return Object.entries(
+        grouped
       )
 
-      .map(
-        ([date, minutes]) => ({
-          date,
-          hours: Number(
-            (minutes / 60).toFixed(2)
-          ),
-        })
-      );
+        .sort(
+          ([dateA], [dateB]) =>
+            new Date(dateA) -
+            new Date(dateB)
+        )
 
-  }, [sessions]);
+        .map(
+          ([date, minutes]) => ({
+
+            date,
+
+            hours:
+              Number(
+                (
+                  minutes /
+                  60
+                ).toFixed(2)
+              ),
+
+          })
+        );
+
+    }, [sessions]);
 
   const studyVsScoreData =
     subjectAnalytics
@@ -770,17 +860,25 @@ function App() {
 
       .map(
         (subject) => ({
-          subject: subject.name,
 
-          studyHours: Number(
-            (
-              subject.studyMinutes / 60
-            ).toFixed(2)
-          ),
+          subject:
+            subject.name,
 
-          score: Number(
-            subject.averageScore.toFixed(2)
-          ),
+          studyHours:
+            Number(
+              (
+                subject.studyMinutes /
+                60
+              ).toFixed(2)
+            ),
+
+          score:
+            Number(
+              subject.averageScore.toFixed(
+                2
+              )
+            ),
+
         })
       );
 
@@ -801,139 +899,156 @@ function App() {
 
       : 0;
 
-  const recommendations = useMemo(() => {
+  const recommendations =
+    useMemo(() => {
 
-    const results = [];
+      const results = [];
 
-    subjectAnalytics.forEach(
-      (subject) => {
+      subjectAnalytics.forEach(
+        (subject) => {
 
-        if (
-          subject.scoreCount > 0 &&
-          subject.targetScore > 0 &&
-          subject.averageScore <
-            subject.targetScore
-        ) {
+          if (
+            subject.scoreCount > 0 &&
+            subject.targetScore > 0 &&
+            subject.averageScore <
+              subject.targetScore
+          ) {
 
-          results.push({
-            type: "high",
+            results.push({
 
-            title:
-              `${subject.name} needs more attention`,
+              type: "high",
 
-            text:
-              `Your average score is ${subject.averageScore.toFixed(
-                1
-              )}%, below your target of ${subject.targetScore}%. Consider increasing focused study time.`,
-          });
+              title:
+                `${subject.name} needs more attention`,
 
-          return;
+              text:
+                `Your average score is ${subject.averageScore.toFixed(
+                  1
+                )}%, below your target of ${subject.targetScore}%. Consider increasing focused study time.`,
+
+            });
+
+            return;
+          }
+
+          if (
+            subject.scoreCount > 0 &&
+            subject.averageScore < 60
+          ) {
+
+            results.push({
+
+              type: "high",
+
+              title:
+                `Improve ${subject.name}`,
+
+              text:
+                `Your current average is ${subject.averageScore.toFixed(
+                  1
+                )}%. Try shorter, consistent study sessions and review difficult topics.`,
+
+            });
+
+            return;
+          }
+
+          if (
+            subject.scoreCount > 0 &&
+            subject.studyMinutes === 0
+          ) {
+
+            results.push({
+
+              type: "high",
+
+              title:
+                `Study ${subject.name}`,
+
+              text:
+                `You have assessment data but no recorded study sessions. Start logging your study time so StudySense can identify useful patterns.`,
+
+            });
+
+            return;
+          }
+
+          if (
+            subject.studyMinutes > 0 &&
+            overallAverageStudyMinutes > 0 &&
+            subject.studyMinutes <
+              overallAverageStudyMinutes *
+                0.5
+          ) {
+
+            results.push({
+
+              type: "medium",
+
+              title:
+                `Increase study time for ${subject.name}`,
+
+              text:
+                `You have recorded less study time for this subject than your other subjects. A more consistent schedule may help.`,
+
+            });
+
+            return;
+          }
+
+          if (
+            subject.sessionCount > 0 &&
+            subject.scoreCount === 0
+          ) {
+
+            results.push({
+
+              type: "medium",
+
+              title:
+                `Track a score for ${subject.name}`,
+
+              text:
+                `You have study sessions recorded but no assessment results yet. Adding scores will help StudySense understand your progress.`,
+
+            });
+
+          }
+
         }
+      );
 
-        if (
-          subject.scoreCount > 0 &&
-          subject.averageScore < 60
-        ) {
+      if (
+        results.length === 0 &&
+        subjectAnalytics.some(
+          (subject) =>
+            subject.scoreCount > 0
+        )
+      ) {
 
-          results.push({
-            type: "high",
+        results.push({
 
-            title:
-              `Improve ${subject.name}`,
+          type: "good",
 
-            text:
-              `Your current average is ${subject.averageScore.toFixed(
-                1
-              )}%. Try shorter, consistent study sessions and review difficult topics.`,
-          });
+          title:
+            "Keep up your work",
 
-          return;
-        }
+          text:
+            "Your current study and performance data does not show a major issue. Keep recording sessions and assessments so StudySense can learn from your progress.",
 
-        if (
-          subject.scoreCount > 0 &&
-          subject.studyMinutes === 0
-        ) {
-
-          results.push({
-            type: "high",
-
-            title:
-              `Study ${subject.name}`,
-
-            text:
-              `You have assessment data but no recorded study sessions. Start logging your study time so StudySense can identify useful patterns.`,
-          });
-
-          return;
-        }
-
-        if (
-          subject.studyMinutes > 0 &&
-          overallAverageStudyMinutes > 0 &&
-          subject.studyMinutes <
-            overallAverageStudyMinutes * 0.5
-        ) {
-
-          results.push({
-            type: "medium",
-
-            title:
-              `Increase study time for ${subject.name}`,
-
-            text:
-              `You have recorded less study time for this subject than your other subjects. A more consistent schedule may help.`,
-          });
-
-          return;
-        }
-
-        if (
-          subject.sessionCount > 0 &&
-          subject.scoreCount === 0
-        ) {
-
-          results.push({
-            type: "medium",
-
-            title:
-              `Track a score for ${subject.name}`,
-
-            text:
-              `You have study sessions recorded but no assessment results yet. Adding scores will help StudySense understand your progress.`,
-          });
-
-        }
+        });
 
       }
-    );
 
-    if (
-      results.length === 0 &&
-      subjectAnalytics.some(
-        (subject) =>
-          subject.scoreCount > 0
-      )
-    ) {
+      return results.slice(
+        0,
+        6
+      );
 
-      results.push({
-        type: "good",
-
-        title:
-          "Keep up your work",
-
-        text:
-          "Your current study and performance data does not show a major issue. Keep recording sessions and assessments so StudySense can learn from your progress.",
-      });
-
-    }
-
-    return results.slice(0, 6);
-
-  }, [
-    subjectAnalytics,
-    overallAverageStudyMinutes,
-  ]);
+    }, [
+      subjectAnalytics,
+      overallAverageStudyMinutes,
+    ]);
 
   // =========================
   // PAGE: DASHBOARD
@@ -946,12 +1061,16 @@ function App() {
       <div className="page-header">
 
         <div>
-          <h1>Dashboard</h1>
+
+          <h1>
+            Dashboard
+          </h1>
 
           <p>
             Overview of your study activity
             and academic performance.
           </p>
+
         </div>
 
       </div>
@@ -959,31 +1078,51 @@ function App() {
       <div className="stats-grid">
 
         <div className="stat-card">
-          <span>Total Study Time</span>
+
+          <span>
+            Total Study Time
+          </span>
+
           <strong>
             {totalHours.toFixed(1)} h
           </strong>
+
         </div>
 
         <div className="stat-card">
-          <span>Average Session</span>
+
+          <span>
+            Average Session
+          </span>
+
           <strong>
             {averageSession.toFixed(0)} min
           </strong>
+
         </div>
 
         <div className="stat-card">
-          <span>Average Score</span>
+
+          <span>
+            Average Score
+          </span>
+
           <strong>
             {averageScore.toFixed(1)}%
           </strong>
+
         </div>
 
         <div className="stat-card">
-          <span>Subjects</span>
+
+          <span>
+            Subjects
+          </span>
+
           <strong>
             {subjects.length}
           </strong>
+
         </div>
 
       </div>
@@ -994,7 +1133,9 @@ function App() {
 
           <div className="card-header">
 
-            <h2>Recent Study Sessions</h2>
+            <h2>
+              Recent Study Sessions
+            </h2>
 
             <button
               onClick={() =>
@@ -1019,38 +1160,44 @@ function App() {
               {[...sessions]
                 .reverse()
                 .slice(0, 5)
-                .map((session) => (
+                .map(
+                  (session) => (
 
-                  <div
-                    className="data-row"
-                    key={session.id}
-                  >
+                    <div
+                      className="data-row"
+                      key={session.id}
+                    >
 
-                    <div>
-                      <strong>
-                        {session.topic}
-                      </strong>
+                      <div>
 
-                      <span>
-                        {getSubjectName(
-                          session.subject_id
-                        )}
-                      </span>
+                        <strong>
+                          {session.topic}
+                        </strong>
+
+                        <span>
+                          {getSubjectName(
+                            session.subject_id
+                          )}
+                        </span>
+
+                      </div>
+
+                      <div>
+
+                        <strong>
+                          {session.duration} min
+                        </strong>
+
+                        <span>
+                          {session.date}
+                        </span>
+
+                      </div>
+
                     </div>
 
-                    <div>
-                      <strong>
-                        {session.duration} min
-                      </strong>
-
-                      <span>
-                        {session.date}
-                      </span>
-                    </div>
-
-                  </div>
-
-                ))}
+                  )
+                )}
 
             </div>
 
@@ -1062,7 +1209,9 @@ function App() {
 
           <div className="card-header">
 
-            <h2>Recent Scores</h2>
+            <h2>
+              Recent Scores
+            </h2>
 
             <button
               onClick={() =>
@@ -1087,42 +1236,44 @@ function App() {
               {[...scores]
                 .reverse()
                 .slice(0, 5)
-                .map((score) => (
+                .map(
+                  (score) => (
 
-                  <div
-                    className="data-row"
-                    key={score.id}
-                  >
+                    <div
+                      className="data-row"
+                      key={score.id}
+                    >
 
-                    <div>
+                      <div>
 
-                      <strong>
-                        {score.assessment}
-                      </strong>
+                        <strong>
+                          {score.assessment}
+                        </strong>
 
-                      <span>
-                        {getSubjectName(
-                          score.subject_id
-                        )}
-                      </span>
+                        <span>
+                          {getSubjectName(
+                            score.subject_id
+                          )}
+                        </span>
+
+                      </div>
+
+                      <div>
+
+                        <strong>
+                          {score.percentage}%
+                        </strong>
+
+                        <span>
+                          {score.date}
+                        </span>
+
+                      </div>
 
                     </div>
 
-                    <div>
-
-                      <strong>
-                        {score.percentage}%
-                      </strong>
-
-                      <span>
-                        {score.date}
-                      </span>
-
-                    </div>
-
-                  </div>
-
-                ))}
+                  )
+                )}
 
             </div>
 
@@ -1147,11 +1298,15 @@ function App() {
       <div className="page-header">
 
         <div>
-          <h1>Subjects</h1>
+
+          <h1>
+            Subjects
+          </h1>
 
           <p>
             Manage your subjects and targets.
           </p>
+
         </div>
 
       </div>
@@ -1160,7 +1315,9 @@ function App() {
 
         <div className="card">
 
-          <h2>Add Subject</h2>
+          <h2>
+            Add Subject
+          </h2>
 
           <form
             className="form"
@@ -1168,15 +1325,19 @@ function App() {
           >
 
             <label>
+
               Subject name
 
               <input
                 type="text"
-                value={subjectForm.name}
+                value={
+                  subjectForm.name
+                }
                 onChange={(event) =>
                   setSubjectForm({
                     ...subjectForm,
-                    name: event.target.value,
+                    name:
+                      event.target.value,
                   })
                 }
                 placeholder="e.g. Mathematics"
@@ -1185,6 +1346,7 @@ function App() {
             </label>
 
             <label>
+
               Target score (%)
 
               <input
@@ -1219,7 +1381,9 @@ function App() {
 
         <div className="card">
 
-          <h2>Your Subjects</h2>
+          <h2>
+            Your Subjects
+          </h2>
 
           {subjects.length === 0 ? (
 
@@ -1240,6 +1404,7 @@ function App() {
                   >
 
                     <div>
+
                       <strong>
                         {subject.name}
                       </strong>
@@ -1250,6 +1415,7 @@ function App() {
                           ? `${subject.target_score}%`
                           : "Not set"}
                       </span>
+
                     </div>
 
                   </div>
@@ -1280,11 +1446,15 @@ function App() {
       <div className="page-header">
 
         <div>
-          <h1>Study Sessions</h1>
+
+          <h1>
+            Study Sessions
+          </h1>
 
           <p>
             Record when and how you study.
           </p>
+
         </div>
 
       </div>
@@ -1293,7 +1463,9 @@ function App() {
 
         <div className="card">
 
-          <h2>Log Study Session</h2>
+          <h2>
+            Log Study Session
+          </h2>
 
           <form
             className="form"
@@ -1301,6 +1473,7 @@ function App() {
           >
 
             <label>
+
               Subject
 
               <select
@@ -1338,6 +1511,7 @@ function App() {
             </label>
 
             <label>
+
               Topic
 
               <input
@@ -1358,6 +1532,7 @@ function App() {
             </label>
 
             <label>
+
               Duration (minutes)
 
               <input
@@ -1379,6 +1554,7 @@ function App() {
             </label>
 
             <label>
+
               Date
 
               <input
@@ -1410,7 +1586,9 @@ function App() {
 
         <div className="card">
 
-          <h2>Study History</h2>
+          <h2>
+            Study History
+          </h2>
 
           {sessions.length === 0 ? (
 
@@ -1486,11 +1664,15 @@ function App() {
       <div className="page-header">
 
         <div>
-          <h1>Scores</h1>
+
+          <h1>
+            Scores
+          </h1>
 
           <p>
             Track your assessment performance.
           </p>
+
         </div>
 
       </div>
@@ -1499,7 +1681,9 @@ function App() {
 
         <div className="card">
 
-          <h2>Add Score</h2>
+          <h2>
+            Add Score
+          </h2>
 
           <form
             className="form"
@@ -1507,6 +1691,7 @@ function App() {
           >
 
             <label>
+
               Subject
 
               <select
@@ -1544,6 +1729,7 @@ function App() {
             </label>
 
             <label>
+
               Assessment
 
               <input
@@ -1566,6 +1752,7 @@ function App() {
             <div className="form-row">
 
               <label>
+
                 Score
 
                 <input
@@ -1586,6 +1773,7 @@ function App() {
               </label>
 
               <label>
+
                 Maximum
 
                 <input
@@ -1608,6 +1796,7 @@ function App() {
             </div>
 
             <label>
+
               Date
 
               <input
@@ -1639,7 +1828,9 @@ function App() {
 
         <div className="card">
 
-          <h2>Score History</h2>
+          <h2>
+            Score History
+          </h2>
 
           {scores.length === 0 ? (
 
@@ -1716,7 +1907,9 @@ function App() {
 
         <div>
 
-          <h2>ML Data Summary</h2>
+          <h2>
+            ML Data Summary
+          </h2>
 
           <p className="card-description">
             These features are calculated from
@@ -1750,21 +1943,37 @@ function App() {
 
               <tr>
 
-                <th>Subject</th>
+                <th>
+                  Subject
+                </th>
 
-                <th>Study Hours</th>
+                <th>
+                  Study Hours
+                </th>
 
-                <th>Sessions</th>
+                <th>
+                  Sessions
+                </th>
 
-                <th>Avg Session</th>
+                <th>
+                  Avg Session
+                </th>
 
-                <th>Assessments</th>
+                <th>
+                  Assessments
+                </th>
 
-                <th>Avg Score</th>
+                <th>
+                  Avg Score
+                </th>
 
-                <th>Target</th>
+                <th>
+                  Target
+                </th>
 
-                <th>Score Gap</th>
+                <th>
+                  Score Gap
+                </th>
 
               </tr>
 
@@ -1782,9 +1991,11 @@ function App() {
                   >
 
                     <td>
+
                       <strong>
                         {feature.subject}
                       </strong>
+
                     </td>
 
                     <td>
@@ -1796,10 +2007,12 @@ function App() {
                     </td>
 
                     <td>
+
                       {
                         feature.average_session_minutes
                       }{" "}
                       min
+
                     </td>
 
                     <td>
@@ -1811,9 +2024,11 @@ function App() {
                     </td>
 
                     <td>
+
                       {feature.target_score
                         ? `${feature.target_score}%`
                         : "—"}
+
                     </td>
 
                     <td>
@@ -1825,10 +2040,13 @@ function App() {
                             : "gap-negative"
                         }
                       >
+
                         {feature.score_gap > 0
                           ? "+"
                           : ""}
+
                         {feature.score_gap}%
+
                       </span>
 
                     </td>
@@ -1862,7 +2080,9 @@ function App() {
 
         <div>
 
-          <h1>Analytics</h1>
+          <h1>
+            Analytics
+          </h1>
 
           <p>
             Understand the relationship between
@@ -1874,7 +2094,9 @@ function App() {
       </div>
 
       <AIPrediction
-        subjectAnalytics={subjectAnalytics}
+        subjectAnalytics={
+          subjectAnalytics
+        }
       />
 
       {/* MODEL PERFORMANCE */}
@@ -1916,9 +2138,13 @@ function App() {
               </span>
 
               <strong>
+
                 {modelPerformance.mae !== null
-                  ? `${modelPerformance.mae.toFixed(2)} points`
+                  ? `${modelPerformance.mae.toFixed(
+                      2
+                    )} points`
                   : "—"}
+
               </strong>
 
             </div>
@@ -1930,9 +2156,13 @@ function App() {
               </span>
 
               <strong>
+
                 {modelPerformance.r2 !== null
-                  ? modelPerformance.r2.toFixed(2)
+                  ? modelPerformance.r2.toFixed(
+                      2
+                    )
                   : "Not enough data"}
+
               </strong>
 
             </div>
@@ -1944,7 +2174,9 @@ function App() {
               </span>
 
               <strong>
-                {modelPerformance.training_examples}
+                {
+                  modelPerformance.training_examples
+                }
               </strong>
 
             </div>
@@ -1956,7 +2188,9 @@ function App() {
               </span>
 
               <strong>
-                {modelPerformance.testing_rows}
+                {
+                  modelPerformance.testing_rows
+                }
               </strong>
 
             </div>
@@ -1970,16 +2204,20 @@ function App() {
           <p className="card-description">
 
             Status:{" "}
+
             <strong>
               {modelPerformance.status}
             </strong>
 
             {modelPerformance.r2 === null && (
               <>
+
                 {" "}
+
                 Add more subjects with assessment
                 scores to produce a meaningful
                 R² evaluation.
+
               </>
             )}
 
@@ -2022,7 +2260,10 @@ function App() {
           <div className="recommendations-list">
 
             {recommendations.map(
-              (recommendation, index) => (
+              (
+                recommendation,
+                index
+              ) => (
 
                 <div
                   className={`recommendation-card recommendation-${recommendation.type}`}
@@ -2046,12 +2287,15 @@ function App() {
                     <div className="recommendation-heading">
 
                       <strong>
-                        {recommendation.title}
+                        {
+                          recommendation.title
+                        }
                       </strong>
 
                       <span
                         className={`recommendation-priority priority-${recommendation.type}`}
                       >
+
                         {recommendation.type ===
                         "high"
                           ? "High"
@@ -2059,12 +2303,15 @@ function App() {
                             "medium"
                           ? "Medium"
                           : "Good"}
+
                       </span>
 
                     </div>
 
                     <p>
-                      {recommendation.text}
+                      {
+                        recommendation.text
+                      }
                     </p>
 
                   </div>
@@ -2088,7 +2335,9 @@ function App() {
 
       <div className="card">
 
-        <h2>Study Time by Subject</h2>
+        <h2>
+          Study Time by Subject
+        </h2>
 
         <div className="chart-container">
 
@@ -2108,14 +2357,18 @@ function App() {
             >
 
               <BarChart
-                data={studyTimeChartData}
+                data={
+                  studyTimeChartData
+                }
               >
 
                 <CartesianGrid
                   strokeDasharray="3 3"
                 />
 
-                <XAxis dataKey="subject" />
+                <XAxis
+                  dataKey="subject"
+                />
 
                 <YAxis />
 
@@ -2142,7 +2395,9 @@ function App() {
 
       <div className="card">
 
-        <h2>Average Score by Subject</h2>
+        <h2>
+          Average Score by Subject
+        </h2>
 
         <div className="chart-container">
 
@@ -2161,14 +2416,18 @@ function App() {
             >
 
               <BarChart
-                data={scoreChartData}
+                data={
+                  scoreChartData
+                }
               >
 
                 <CartesianGrid
                   strokeDasharray="3 3"
                 />
 
-                <XAxis dataKey="subject" />
+                <XAxis
+                  dataKey="subject"
+                />
 
                 <YAxis
                   domain={[0, 100]}
@@ -2197,7 +2456,9 @@ function App() {
 
       <div className="card">
 
-        <h2>Study Time Over Time</h2>
+        <h2>
+          Study Time Over Time
+        </h2>
 
         <div className="chart-container">
 
@@ -2217,14 +2478,18 @@ function App() {
             >
 
               <LineChart
-                data={sessionTrendData}
+                data={
+                  sessionTrendData
+                }
               >
 
                 <CartesianGrid
                   strokeDasharray="3 3"
                 />
 
-                <XAxis dataKey="date" />
+                <XAxis
+                  dataKey="date"
+                />
 
                 <YAxis />
 
@@ -2299,7 +2564,9 @@ function App() {
 
                 <Scatter
                   name="Subjects"
-                  data={studyVsScoreData}
+                  data={
+                    studyVsScoreData
+                  }
                 />
 
               </ScatterChart>
@@ -2318,7 +2585,9 @@ function App() {
 
         <div className="card">
 
-          <h2>Performance by Subject</h2>
+          <h2>
+            Performance by Subject
+          </h2>
 
           {subjectAnalytics.length ===
           0 ? (
@@ -2346,11 +2615,13 @@ function App() {
                       </strong>
 
                       <span>
+
                         {subject.scoreCount > 0
                           ? `${subject.averageScore.toFixed(
                               1
                             )}%`
                           : "No score"}
+
                       </span>
 
                     </div>
@@ -2382,7 +2653,9 @@ function App() {
 
         <div className="card">
 
-          <h2>Study Time by Subject</h2>
+          <h2>
+            Study Time by Subject
+          </h2>
 
           {subjectAnalytics.length ===
           0 ? (
@@ -2410,11 +2683,13 @@ function App() {
                       </strong>
 
                       <span>
+
                         {(
                           subject.studyMinutes /
                           60
                         ).toFixed(1)}{" "}
                         h
+
                       </span>
 
                     </div>
@@ -2606,8 +2881,6 @@ function App() {
     </div>
 
   );
-
 }
 
 export default App;
-

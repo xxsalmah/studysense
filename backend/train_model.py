@@ -7,14 +7,14 @@ import joblib
 
 from sklearn.model_selection import KFold, cross_val_score
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_absolute_error, r2_score
 
 from app import app
 from models import Subject, StudySession, Score
 
 
 # ========================================
-# CREATE DATASET
+# CREATE ASSESSMENT-LEVEL DATASET
 # ========================================
 
 def create_dataset():
@@ -33,18 +33,45 @@ def create_dataset():
 
     rows = []
 
-    for subject in subjects:
+    # ------------------------------------
+    # Each assessment becomes one ML row
+    # ------------------------------------
 
-        subject_sessions = [
+    for score in scores:
+
+        subject = next(
+            (
+                subject
+                for subject in subjects
+                if subject.id == score.subject_id
+            ),
+            None
+        )
+
+        if subject is None:
+            continue
+
+        # --------------------------------
+        # Sessions BEFORE this assessment
+        # --------------------------------
+
+        previous_sessions = [
             session
             for session in sessions
-            if session.subject_id == subject.id
+            if session.subject_id == score.subject_id
+            and session.date <= score.date
         ]
 
-        subject_scores = [
-            score
-            for score in scores
-            if score.subject_id == subject.id
+        # --------------------------------
+        # Previous assessments
+        # --------------------------------
+
+        previous_scores = [
+            previous_score
+            for previous_score in scores
+            if previous_score.subject_id == score.subject_id
+            and previous_score.date < score.date
+            and previous_score.id != score.id
         ]
 
         # --------------------------------
@@ -52,11 +79,17 @@ def create_dataset():
         # --------------------------------
 
         total_minutes = sum(
-            session.duration
-            for session in subject_sessions
+            float(session.duration)
+            for session in previous_sessions
         )
 
-        session_count = len(subject_sessions)
+        session_count = len(
+            previous_sessions
+        )
+
+        study_hours = (
+            total_minutes / 60
+        )
 
         average_session_minutes = (
             total_minutes / session_count
@@ -64,37 +97,42 @@ def create_dataset():
             else 0
         )
 
-        study_hours = total_minutes / 60
-
         # --------------------------------
-        # Score statistics
+        # Previous score statistics
         # --------------------------------
 
-        percentages = []
+        previous_percentages = []
 
-        for score in subject_scores:
+        for previous_score in previous_scores:
 
-            if score.max_score > 0:
+            if float(previous_score.max_score) > 0:
 
                 percentage = (
-                    score.score / score.max_score
+                    float(previous_score.score)
+                    / float(previous_score.max_score)
                 ) * 100
 
-                percentages.append(percentage)
+                previous_percentages.append(
+                    percentage
+                )
 
-        if percentages:
+        if previous_percentages:
 
-            average_score = (
-                sum(percentages)
-                / len(percentages)
+            previous_score_average = (
+                sum(previous_percentages)
+                / len(previous_percentages)
             )
 
         else:
 
-            average_score = None
+            previous_score_average = 0
+
+        previous_score_count = len(
+            previous_percentages
+        )
 
         # --------------------------------
-        # Target
+        # Target score
         # --------------------------------
 
         target_score = (
@@ -104,32 +142,48 @@ def create_dataset():
         )
 
         # --------------------------------
-        # Add training row
+        # Actual assessment score
         # --------------------------------
 
-        if average_score is not None:
+        if float(score.max_score) <= 0:
+            continue
 
-            rows.append({
+        actual_score = (
+            float(score.score)
+            / float(score.max_score)
+        ) * 100
 
-                "subject": subject.name,
+        # --------------------------------
+        # Create ML row
+        # --------------------------------
 
-                "study_hours": study_hours,
+        rows.append({
 
-                "session_count": session_count,
+            "subject":
+                subject.name,
 
-                "average_session_minutes":
-                    average_session_minutes,
+            "study_hours":
+                study_hours,
 
-                "score_count":
-                    len(subject_scores),
+            "session_count":
+                session_count,
 
-                "target_score":
-                    target_score,
+            "average_session_minutes":
+                average_session_minutes,
 
-                "average_score":
-                    average_score
+            "previous_score_average":
+                previous_score_average,
 
-            })
+            "previous_score_count":
+                previous_score_count,
+
+            "target_score":
+                target_score,
+
+            "actual_score":
+                actual_score
+
+        })
 
     return pd.DataFrame(rows)
 
@@ -141,7 +195,10 @@ def create_dataset():
 def train_model():
 
     print()
-    print("Creating ML dataset...")
+    print(
+        "Creating assessment-level "
+        "ML dataset..."
+    )
 
     df = create_dataset()
 
@@ -156,8 +213,8 @@ def train_model():
         print("No training data found.")
         print()
         print(
-            "Add subjects with assessment scores "
-            "before training the model."
+            "Add assessment scores before "
+            "training the model."
         )
 
         return
@@ -166,9 +223,12 @@ def train_model():
         df.to_string(index=False)
     )
 
+    training_examples = len(df)
+
     print()
     print(
-        f"Training examples: {len(df)}"
+        f"Training examples: "
+        f"{training_examples}"
     )
 
     # ====================================
@@ -176,11 +236,19 @@ def train_model():
     # ====================================
 
     features = [
+
         "study_hours",
+
         "session_count",
+
         "average_session_minutes",
-        "score_count",
+
+        "previous_score_average",
+
+        "previous_score_count",
+
         "target_score"
+
     ]
 
     X = df[features]
@@ -189,7 +257,7 @@ def train_model():
     # TARGET
     # ====================================
 
-    y = df["average_score"]
+    y = df["actual_score"]
 
     print()
     print("========================================")
@@ -216,55 +284,128 @@ def train_model():
     print("CROSS-VALIDATION")
     print("========================================")
 
-    # Use 5 folds when we have 5+ examples.
-    # This means every example gets used for
-    # validation once.
+    average_mae = None
+    cv_folds = 0
+    cv_mae_scores = []
+    cv_r2_scores = []
 
-    number_of_folds = min(
-        5,
-        len(df)
-    )
+    # ------------------------------------
+    # Need at least 5 rows for CV
+    # ------------------------------------
 
-    kfold = KFold(
-        n_splits=number_of_folds,
-        shuffle=True,
-        random_state=42
-    )
+    if len(df) >= 5:
 
-    model = LinearRegression()
-
-    # --------------------------------
-    # MAE
-    # --------------------------------
-
-    mae_scores = cross_val_score(
-        model,
-        X,
-        y,
-        cv=kfold,
-        scoring="neg_mean_absolute_error"
-    )
-
-    mae_scores = -mae_scores
-
-    print()
-
-    for index, score in enumerate(
-        mae_scores,
-        start=1
-    ):
-
-        print(
-            f"Fold {index} MAE: {score:.2f}"
+        cv_folds = min(
+            5,
+            len(df)
         )
 
-    average_mae = mae_scores.mean()
+        kfold = KFold(
+            n_splits=cv_folds,
+            shuffle=True,
+            random_state=42
+        )
 
-    print()
-    print(
-        f"Average Cross-Validation MAE: "
-        f"{average_mae:.2f}"
-    )
+        model = LinearRegression()
+
+        # --------------------------------
+        # MAE
+        # --------------------------------
+
+        mae_scores = cross_val_score(
+            model,
+            X,
+            y,
+            cv=kfold,
+            scoring="neg_mean_absolute_error"
+        )
+
+        mae_scores = -mae_scores
+
+        cv_mae_scores = [
+            float(value)
+            for value in mae_scores
+        ]
+
+        for index, score_value in enumerate(
+            mae_scores,
+            start=1
+        ):
+
+            print(
+                f"Fold {index} MAE: "
+                f"{score_value:.2f}"
+            )
+
+        average_mae = mae_scores.mean()
+
+        print()
+        print(
+            f"Average Cross-Validation MAE: "
+            f"{average_mae:.2f}"
+        )
+
+        # --------------------------------
+        # R²
+        # --------------------------------
+        #
+        # With very small datasets, R² can
+        # be unstable. We calculate it for
+        # reference but only save it when
+        # cross-validation provides valid
+        # values.
+        # --------------------------------
+
+        r2_scores = cross_val_score(
+            model,
+            X,
+            y,
+            cv=kfold,
+            scoring="r2"
+        )
+
+        cv_r2_scores = [
+            float(value)
+            for value in r2_scores
+            if pd.notna(value)
+        ]
+
+        if cv_r2_scores:
+
+            average_r2 = (
+                sum(cv_r2_scores)
+                / len(cv_r2_scores)
+            )
+
+            print()
+            print(
+                f"Average Cross-Validation R²: "
+                f"{average_r2:.4f}"
+            )
+
+        else:
+
+            average_r2 = None
+
+            print()
+            print(
+                "R² could not be calculated "
+                "reliably."
+            )
+
+    else:
+
+        print()
+        print(
+            "Not enough examples for "
+            "5-fold cross-validation."
+        )
+
+        print(
+            "More assessment data is needed."
+        )
+
+        average_r2 = None
 
     # ====================================
     # TRAIN FINAL MODEL
@@ -280,13 +421,34 @@ def train_model():
         "model using all available data..."
     )
 
-    model.fit(
+    final_model = LinearRegression()
+
+    final_model.fit(
         X,
         y
     )
 
     print(
         "Final model trained successfully!"
+    )
+
+    # ====================================
+    # TRAINING R²
+    # ====================================
+
+    training_predictions = (
+        final_model.predict(X)
+    )
+
+    training_r2 = r2_score(
+        y,
+        training_predictions
+    )
+
+    print()
+    print(
+        f"Training R²: "
+        f"{training_r2:.4f}"
     )
 
     # ====================================
@@ -300,17 +462,49 @@ def train_model():
 
     for feature, coefficient in zip(
         features,
-        model.coef_
+        final_model.coef_
     ):
 
         print(
-            f"{feature}: {coefficient:.4f}"
+            f"{feature}: "
+            f"{coefficient:.4f}"
         )
 
     print()
+
     print(
-        f"Intercept: {model.intercept_:.4f}"
+        f"Intercept: "
+        f"{final_model.intercept_:.4f}"
     )
+
+    # ====================================
+    # MODEL STATUS
+    # ====================================
+
+    if training_examples < 10:
+
+        model_status = (
+            "Early model - more assessment "
+            "data needed"
+        )
+
+    elif average_mae is not None and average_mae <= 10:
+
+        model_status = (
+            "Good early performance"
+        )
+
+    elif average_mae is not None:
+
+        model_status = (
+            "Needs more data and improvement"
+        )
+
+    else:
+
+        model_status = (
+            "More assessment data needed"
+        )
 
     # ====================================
     # SAVE MODEL
@@ -318,15 +512,52 @@ def train_model():
 
     model_data = {
 
-        "model": model,
+        "model":
+            final_model,
 
-        "features": features,
+        "features":
+            features,
 
-        "mae": float(average_mae),
+        "mae":
+            (
+                float(average_mae)
+                if average_mae is not None
+                else None
+            ),
 
-        "cv_folds": number_of_folds,
+        "r2":
+            (
+                float(average_r2)
+                if average_r2 is not None
+                else None
+            ),
 
-        "training_examples": len(df)
+        "training_r2":
+            float(training_r2),
+
+        "training_examples":
+            training_examples,
+
+        "testing_examples":
+            0,
+
+        "cv_folds":
+            cv_folds,
+
+        "cv_mae_scores":
+            cv_mae_scores,
+
+        "cv_r2_scores":
+            cv_r2_scores,
+
+        "model_status":
+            model_status,
+
+        "model_type":
+            "Linear Regression",
+
+        "prediction_target":
+            "assessment_score"
 
     }
 
@@ -349,15 +580,40 @@ def train_model():
     )
 
     print()
+
     print(
-        "Cross-validation complete."
+        f"Training examples: "
+        f"{training_examples}"
     )
 
     print(
-        "Final model trained on all data."
+        f"Cross-validation folds: "
+        f"{cv_folds}"
+    )
+
+    if average_mae is not None:
+
+        print(
+            f"Average CV MAE: "
+            f"{average_mae:.2f}"
+        )
+
+    if average_r2 is not None:
+
+        print(
+            f"Average CV R²: "
+            f"{average_r2:.4f}"
+        )
+
+    print()
+
+    print(
+        "The model now predicts assessment "
+        "performance from study history."
     )
 
     print()
+
     print(
         "StudySense ML pipeline is ready."
     )
